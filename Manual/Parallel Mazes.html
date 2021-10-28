@@ -1,0 +1,185 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1">
+    <title>Parallel Mazes — Keep Talking and Nobody Explodes Module</title>
+    <link rel="stylesheet" type="text/css" href="css/font.css" />
+    <link rel="stylesheet" type="text/css" href="css/normalize.css" />
+    <link rel="stylesheet" type="text/css" href="css/main.css" />
+    <script src="js/ktane-utils.js"></script>
+    <script src="https://cdn.socket.io/4.3.2/socket.io.min.js" integrity="sha384-KAZ4DtjNhLChOB/hxXuKqhMLYvx3b5MlT55xPEiNmREKRzeEm+RVPlTnAn0ajQNs" crossorigin="anonymous">
+    </script>
+    <script>
+        const ID_SYMBOLS = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+
+        let requestId = 0;
+        /** @type {{ [id: string]: { resolve: (res: unknown) => any, reject: (res: unknown) => any } }} */
+        const promises = {};
+
+        function call(socket, method, args = null) {
+            const id = requestId++;
+            const promise = new Promise((resolve, reject) => promises[id] = { resolve, reject });
+            socket.emit("call", { id, method, args });
+            return promise;
+        }
+
+        let display;
+        let socket = null;
+        let gameId = "";
+
+        async function onConnect() {
+            display.innerText = `Connecting to game "${gameId}"...`;
+            let pass;
+            try {
+                ({ pass } = await call(socket, "connect_to_game", { game_id: gameId }));
+            } catch (error) {
+                if (error !== "game not found") throw error;
+                display.innerText = `Game "${gameId}" not found`;
+                const retryButton = display.appendChild(document.createElement("button"));
+                retryButton.innerText = "Reload";
+                retryButton.onclick = onLoad;
+                return;
+            }
+            display.innerText = `Connected to game.\nEnter "${pass}" on module.`;
+        }
+
+        function onConnectPressed(gameId) {
+            display.innerText = "Connecting to server...";
+            if (!socket) {
+                socket = io("http://localhost:3000");
+                socket.on("connect", onConnect);
+                socket.on("res", (data) => {
+                    const { id, success, response } = data;
+                    const { resolve, reject } = promises[id];
+                    delete promises[id];
+                    if (success) resolve(response);
+                    else reject(response);
+                });
+            } else onConnect();
+        }
+
+        async function onLoad() {
+            display = document.getElementById("display");
+            display.innerText = "Enter Game Id:";
+            const input = display.appendChild(document.createElement("input"));
+            input.setAttribute("type", "text");
+            input.setAttribute("maxlength", "6");
+            const button = display.appendChild(document.createElement("button"));
+            button.disabled = true;
+            button.innerText = "Connect";
+            button.onclick = () => onConnectPressed(gameId);
+            input.addEventListener('input', (e) => {
+                gameId = e.target.value.toUpperCase().split("").filter(c => ID_SYMBOLS.indexOf(c) >= 0).join("");
+                e.target.value = gameId;
+                button.disabled = gameId.length !== 6;
+            });
+            input.focus();
+        }
+
+        document.addEventListener("DOMContentLoaded", onLoad);
+    </script>
+    <style>
+        #module {
+            width: 512px;
+            height: 512px;
+            background-color: #282d36;
+            margin: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #display {
+            font-family: 'Courier New', Courier, monospace;
+            color: white;
+            background-color: black;
+            width: 384px;
+            height: 384px;
+            padding: 32px;
+        }
+
+        #display input {
+            width: 58px;
+            padding: 0 8px;
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #282d36;
+            border: none;
+            color: greenyellow;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+
+        #display input:focus {
+            outline: solid 1px green;
+        }
+
+        #display button {
+            padding: 0 8px;
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #282d36;
+            border: none;
+            color: greenyellow;
+            font-weight: bold;
+            margin-left: 8px;
+            outline: 0;
+        }
+
+        #display button:disabled {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="section">
+        <div class="page page-bg-01">
+            <div class="page-header">
+                <span class="page-header-doc-title">Keep Talking and Nobody Explodes Mod</span>
+                <span class="page-header-section-title">Parallel Mazes</span>
+            </div>
+            <div class="page-content">
+                <img src="img/Component/Parallel Mazes.svg" class="diagram">
+                <h2>On the Subject of Parallel Mazes</h2>
+                <p class="flavour-text">This module blurs the line between defuser and expert</p>
+                <p>
+                    The module consists of display with 4 directional buttons (simular to Maze module), code-display on top of it and LED on the right.
+                    Unlike the Maze module, the display of the Parallel Mazes module displays walls.
+                </p>
+                <p>
+                    First, the expert must enter the code displayed on the module into the input located in this manual and press "Connect" button.
+                    After that, a similar module will appear in the manual.
+                    To solve the module, both the expert and the defuser must bring themselves (white square) to the goal (red triangle).
+                    However, the walls of the expert are shown on the defuser module and vice versa.
+                    Also the modules can be rotated, look at the green circles to determine the difference in orientation.
+                </p>
+                <p>
+                    Use the buttons on the sides of the display to move around. But you cannot use the buttons until another player makes his move.
+                    Watch the LED to the right of the display. If it's green, it's your turn now.
+                    If an expert or defuser reaches the target, then the second will no longer have a move limit (the LED will always be green).
+                </p>
+                <p>If any of you try to go through a wall or try to make a move while the LED is red, then defuser will get a strike.</p>
+                <p>
+                    If, instead of the code, the word "ERROR" is displayed on the module,
+                    defuser just has to guide himself to the goal avoiding the walls that the module has displayed.
+                </p>
+            </div>
+            <div class="page-footer relative-footer">Page 1 of 2</div>
+        </div>
+        <div class="page page-bg-01">
+            <div class="page-header">
+                <span class="page-header-doc-title">Keep Talking and Nobody Explodes Mod</span>
+                <span class="page-header-section-title">Parallel Mazes</span>
+            </div>
+            <div class="page-content" style="width: 100%; margin-left: 0; display: flex; justify-content: center; align-items: center;">
+                <div id="module">
+                    <div id="display">Loading...</div>
+                </div>
+            </div>
+            <div class="page-footer relative-footer">Page 2 of 2</div>
+        </div>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,45 @@
+{
+	"editor.insertSpaces": false,
+	"editor.tabSize": 4,
+	"editor.codeLens": false,
+	"editor.rulers": [
+		175
+	],
+	"editor.wordWrapColumn": 175,
+	"editor.wordWrap": "wordWrapColumn",
+	"omnisharp.useEditorFormattingSettings": false,
+	"[csharp]": {
+		"editor.insertSpaces": false,
+		"editor.tabSize": 4,
+	},
+	"html.format.wrapLineLength": 0,
+	"[html]": {
+		"editor.wrappingIndent": "indent",
+		"editor.insertSpaces": true,
+		"editor.tabSize": 4,
+	},
+	"files.exclude": {
+		"steam_api64.dll": true,
+		"steam_appid.txt": true,
+		"ProjectSettings": true,
+		"Library": true,
+		"build": true,
+		"Temp": true,
+		"UnityPackageManager": true,
+		"Assembly-CSharp*": true,
+		"*.sln": true,
+		"obj": true,
+		"Manual/Template Manual.html": true,
+		"**/.git": true,
+		"**/.svn": true,
+		"**/.hg": true,
+		"**/CVS": true,
+		"**/.DS_Store": true,
+		"**/*.prefab": true,
+		"**/*.meta": true,
+		"**/*.mat": true,
+		"**/*.fbx": true,
+		"**/*.unity": true,
+		"**/*.dll": true
+	}
+}
