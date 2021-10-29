@@ -9,83 +9,10 @@
     <link rel="stylesheet" type="text/css" href="css/normalize.css" />
     <link rel="stylesheet" type="text/css" href="css/main.css" />
     <script src="js/ktane-utils.js"></script>
-    <script src="https://cdn.socket.io/4.3.2/socket.io.min.js" integrity="sha384-KAZ4DtjNhLChOB/hxXuKqhMLYvx3b5MlT55xPEiNmREKRzeEm+RVPlTnAn0ajQNs" crossorigin="anonymous">
-    </script>
+    <script src="js/Parallel%20Mazes/require.js"></script>
     <script>
-        const PASS_SYMBOLS = "0123456789";
-
-        let socket = null;
-        let requestId = 0;
-        /** @type {{ [id: string]: { resolve: (res: unknown) => any, reject: (res: unknown) => any } }} */
-        const promises = {};
-
-        function call(method, args = null) {
-            const id = requestId++;
-            const promise = new Promise((resolve, reject) => promises[id] = { resolve, reject });
-            socket.emit("call", { id, method, args });
-            return promise;
-        }
-
-        let moduleKey = null;
-        let gameId = null;
-
-        let display = null;
-
-        async function onStartPressed(code) {
-            display.innerText = `Game Id: ${gameId}\nConnecting to expert "${code}"...`;
-            try {
-                const { expert_maze } = await call("connect_to_expert", { game_id: gameId, expert_id: code });
-                console.log(expert_maze.join(""));
-            } catch (error) {
-                if (error !== "expert not found") throw error;
-                display.innerText = `Game Id: ${gameId}\nExpert "${code}" not found`;
-                const retryButton = display.appendChild(document.createElement("button"));
-                retryButton.innerText = "Reload";
-                retryButton.onclick = onConnect;
-                return;
-            }
-        }
-
-        async function onConnect() {
-            display.innerText = `Game Id: ${gameId}\nEnter expert id:`;
-            const input = display.appendChild(document.createElement("input"));
-            input.setAttribute("type", "text");
-            input.setAttribute("maxlength", "8");
-            const button = display.appendChild(document.createElement("button"));
-            button.disabled = true;
-            button.innerText = "Start";
-            button.onclick = () => onStartPressed(expertId);
-            input.addEventListener('input', (e) => {
-                expertId = e.target.value.toUpperCase().split("").filter(c => PASS_SYMBOLS.indexOf(c) >= 0).join("");
-                e.target.value = expertId;
-                button.disabled = expertId.length !== 8;
-            });
-            input.focus();
-        }
-
-        document.addEventListener("DOMContentLoaded", async () => {
-            display = document.getElementById("display");
-            display.innerText = "Connecting to server...";
-            socket = io("http://localhost:3000");
-            socket.on("connect", async () => {
-                display.innerText = "Creating game...";
-                if (moduleKey === null) {
-                    let expertId = "";
-                    const { game_id, module_key } = await call("create_game");
-                    console.log("Module Key:", module_key);
-                    moduleKey = module_key;
-                    console.log("Game Id:", game_id);
-                    gameId = game_id;
-                    onConnect();
-                }
-            });
-            socket.on("res", (data) => {
-                const { id, success, response } = data;
-                const { resolve, reject } = promises[id];
-                delete promises[id];
-                if (success) resolve(response);
-                else reject(response);
-            });
+        document.addEventListener("DOMContentLoaded", () => {
+            requirejs(["js/Parallel%20Mazes/module-client"]);
         });
     </script>
     <style>
@@ -99,7 +26,7 @@
             justify-content: center;
         }
 
-        #display {
+        #display-text {
             font-family: 'Courier New', Courier, monospace;
             color: white;
             background-color: black;
@@ -149,7 +76,7 @@
             </div>
             <div class="page-content" style="width: 100%; margin-left: 0; display: flex; justify-content: center; align-items: center;">
                 <div id="module">
-                    <div id="display">Loading...</div>
+                    <div id="display-text">Loading...</div>
                 </div>
             </div>
             <div class="page-footer relative-footer">Page 1 of 1</div>
