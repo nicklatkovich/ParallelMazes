@@ -1,0 +1,16 @@
+{
+  "name": "ktane-parallel-mazes-client-web",
+  "version": "1.0.0",
+  "description": "Web client for KTaNE module Parallel Mazes",
+  "main": "dist/index.js",
+  "repository": "git@github.com:nicklatkovich/ParallelMazes.git",
+  "author": "NickLatkovich",
+  "license": "MIT",
+  "scripts": {
+    "build": "rm -rf ../Manual/js/Parallel Mazes/src/ && tsc",
+    "start": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^4.4.4"
+  }
+}

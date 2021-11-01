@@ -1,0 +1,36 @@
+{
+	"compilerOptions": {
+		"target": "ES2015",
+		"module": "AMD",
+		"preserveConstEnums": true,
+		"allowJs": false,
+		"declaration": true,
+		"declarationMap": false,
+		"sourceMap": false,
+		"composite": true,
+		"removeComments": true,
+		"noEmit": false,
+		"downlevelIteration": true,
+		"strict": true,
+		"noImplicitAny": true,
+		"skipLibCheck": true,
+		"strictNullChecks": true,
+		"strictFunctionTypes": true,
+		"strictBindCallApply": true,
+		"strictPropertyInitialization": true,
+		"noImplicitThis": true,
+		"alwaysStrict": true,
+		"noUnusedLocals": false,
+		"noUnusedParameters": true,
+		"noImplicitReturns": true,
+		"noFallthroughCasesInSwitch": true,
+		"esModuleInterop": true,
+		"rootDir": "./src/",
+		"outDir": "../Manual/js/Parallel Mazes/src/",
+		"lib": [
+			"es5",
+			"es6",
+			"dom"
+		]
+	}
+}
