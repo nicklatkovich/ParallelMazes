@@ -2887,5 +2887,5 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ModuleType: parallel_mazes
-  ModuleDisplayName: ParallelMazes
+  ModuleDisplayName: Parallel Mazes
   RequiresTimerVisibility: 0
