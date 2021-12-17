@@ -21,12 +21,13 @@ public class ExpertIdInput : MonoBehaviour {
 		Keys = Enumerable.Range(0, 10).Select(i => {
 			KeyComponent key = Instantiate(KeyPrefab);
 			key.transform.parent = transform;
-			float x = (i % 5 - 2) * INTERVAL;
-			float z = INTERVAL * (i / 5);
+			int posIndex = (i + 9) % 10;
+			float x = (posIndex % 5 - 2) * INTERVAL;
+			float z = INTERVAL * (posIndex / 5);
 			key.transform.localPosition = new Vector3(x, 0, -(OFFSET + z));
 			key.transform.localRotation = Quaternion.identity;
 			key.transform.localScale = Vector3.one;
-			char c = (char)('0' + (i + 1) % 10);
+			char c = (char)('0' + i);
 			key.Label = c;
 			key.Selectable.OnInteract += () => { OnKeyPressed(c); return false; };
 			return key;

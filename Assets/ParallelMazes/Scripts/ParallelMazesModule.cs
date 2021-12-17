@@ -1,10 +1,20 @@
-﻿using System.Linq;
+﻿using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using KeepCoding;
-using KModkit;
 
 public class ParallelMazesModule : ModuleScript {
 	enum State { CONNECTON, DISCONNECTED, REGISTRATION, WAITING_FOR_EXPERT, IN_GAME, EXPERT_NOT_FOUND }
+
+	public readonly string TwitchHelpMessage = new[] {
+		"\"!{0} expert 123456\" - connect expert",
+		"\"!{0} move u\" - press movement button",
+		"\"!{0} retry\" - press retry button",
+		"\"!{0} disconnect\" - disconnect expert",
+		"\"!{0} sad\" - solves module if server is unavailable",
+	}.Join(" | ");
 
 	public TextMesh Console;
 	public KMSelectable Selectable;
@@ -19,18 +29,21 @@ public class ParallelMazesModule : ModuleScript {
 		public bool Move = false;
 		public bool Solve = false;
 		public bool Strike = false;
+		public float Time;
 	}
 
 	private bool _connected = false;
 	private string _gameId;
 	private string _moduleKey;
 	private float _lastPingTime;
+	private float _lastTime;
 	private State _prevState = State.CONNECTON;
 	private State _state = State.CONNECTON;
 	private Updating _updating = new Updating();
 	private ParallelMazesClient _client = new ParallelMazesClient();
 
 	private void Start() {
+		_lastTime = Time.time;
 		_client.WS.OnOpen += OnConnect;
 		_client.WS.OnError += (e) => Debug.LogFormat("Error: {0}", e);
 		_client.WS.OnClose += OnDisconnected;
@@ -68,7 +81,74 @@ public class ParallelMazesModule : ModuleScript {
 		_client.WS.Close();
 	}
 
+	public IEnumerator ProcessTwitchCommand(string command) {
+		command = command.Trim().ToLower();
+		if (Regex.IsMatch(command, @"^expert +[0-9]{7}$")) {
+			yield return null;
+			if (_state != State.WAITING_FOR_EXPERT) {
+				yield return "sendtochaterror {0}, !{1}: expert id cannot be entered right now";
+				yield break;
+			}
+			string code = command.Split(' ').Last();
+			List<KMSelectable> buttons = code.Select(c => ExpertIdInput.Keys[c - '0'].Selectable).ToList();
+			buttons.Add(ExpertIdInput.SubmitButton);
+			if (ExpertIdInput.ExpertId.Length > 0) buttons.Insert(0, ExpertIdInput.ClearButton);
+			yield return buttons.ToArray();
+			yield return new WaitUntil(() => _state != State.WAITING_FOR_EXPERT);
+			yield break;
+		}
+		if (Regex.IsMatch(command, @"^move +(up?|d(own)?|l(eft)?|r(ight)?)$")) {
+			yield return null;
+			if (_state != State.IN_GAME) {
+				yield return "sendtochaterror {0}, !{1}: cannot move: not in game";
+				yield break;
+			}
+			if (!GameContainer.Move) {
+				yield return "sendtochaterror {0}, !{1}: cannot move: not your turn";
+				yield break;
+			}
+			char dirC = command.Split(' ').Last().First();
+			float lastUpdatingTime = _updating.Time;
+			float time = _lastTime;
+			if (dirC == 'u') yield return new[] { GameContainer.UpButton };
+			else if (dirC == 'd') yield return new[] { GameContainer.DownButton };
+			else if (dirC == 'l') yield return new[] { GameContainer.LeftButton };
+			else if (dirC == 'r') yield return new[] { GameContainer.RightButton };
+			else throw new System.Exception(string.Format("Move cannot be made in {0} direction", dirC));
+			yield return new WaitUntil(() => lastUpdatingTime != _updating.Time || _lastTime - time > 1f);
+			yield break;
+		}
+		if (command == "retry") {
+			yield return null;
+			if (_state != State.EXPERT_NOT_FOUND) {
+				yield return "sendtochaterror {0}, !{1}: retry button not found";
+				yield break;
+			}
+			yield return new[] { ExpertNotFoundComponent.RetryButton };
+			yield break;
+		}
+		if (command == "disconnect") {
+			yield return null;
+			if (_state != State.IN_GAME) {
+				yield return "sendtochaterror {0}, !{1}: disconnect button not found";
+				yield break;
+			}
+			yield return new[] { GameContainer.DisconnectButton };
+			yield break;
+		}
+		if (command == "sad") {
+			yield return null;
+			if (_state != State.DISCONNECTED) {
+				yield return "sendtochaterror {0}, !{1}: module seems to be working correctly";
+				yield break;
+			}
+			yield return new[] { SolveButton };
+			yield break;
+		}
+	}
+
 	private void Update() {
+		_lastTime = Time.time;
 		if (IsSolved) return;
 		if (_state != _prevState) UpdateState();
 		if (_updating.ShouldUpdate) {
@@ -135,6 +215,7 @@ public class ParallelMazesModule : ModuleScript {
 			_updating.Move = result.Move == "module";
 			_updating.NewModulePosition = result.NewPosition;
 			_updating.Solve = result.Move == "none";
+			_updating.Time = _lastTime;
 		}, (reason) => {
 			if (reason.Message != "moved into wall") {
 				Debug.LogError(reason);
@@ -144,6 +225,7 @@ public class ParallelMazesModule : ModuleScript {
 			_updating.ShouldUpdate = true;
 			_updating.Move = reason.Move == "module";
 			_updating.Strike = true;
+			_updating.Time = _lastTime;
 		});
 	}
 

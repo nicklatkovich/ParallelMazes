@@ -19,6 +19,6 @@ MonoBehaviour:
 
 
     KTaNE Modding Jam #2'
-  version: 1.0.2
+  version: 1.1.0
   outputFolder: build
   previewImage: {fileID: 2800000, guid: 5c496953904742d46aa3ba49ff694371, type: 3}
