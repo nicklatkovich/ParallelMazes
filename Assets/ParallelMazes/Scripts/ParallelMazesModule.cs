@@ -23,15 +23,18 @@ public class ParallelMazesModule : ModuleScript {
 	public ExpertNotFoundComponent ExpertNotFoundComponent;
 	public GameContainer GameContainer;
 
-	private class Updating {
-		public bool ShouldUpdate = false;
-		public ParallelMazesClient.Coord NewModulePosition;
-		public bool Move = false;
-		public bool Solve = false;
-		public bool Strike = false;
+	private class GameMoveInfo {
+		public bool IsNew;
+		public bool Expert;
+		public string Direction;
+		public ParallelMazesClient.Coord Position;
+		public bool CanMove;
+		public bool Solve;
+		public bool Strike;
 		public float Time;
 	}
 
+	private bool _startLogged = false;
 	private bool _connected = false;
 	private string _gameId;
 	private string _moduleKey;
@@ -39,13 +42,15 @@ public class ParallelMazesModule : ModuleScript {
 	private float _lastTime;
 	private State _prevState = State.CONNECTON;
 	private State _state = State.CONNECTON;
-	private Updating _updating = new Updating();
+	private GameMoveInfo _lastMoveInfo = new GameMoveInfo();
 	private ParallelMazesClient _client = new ParallelMazesClient();
+	private object _lastException = null;
+	private Queue<string> _logs = new Queue<string>();
 
 	private void Start() {
 		_lastTime = Time.time;
 		_client.WS.OnOpen += OnConnect;
-		_client.WS.OnError += (e) => Debug.LogFormat("Error: {0}", e);
+		_client.WS.OnError += (e) => _lastException = e;
 		_client.WS.OnClose += OnDisconnected;
 	}
 
@@ -73,6 +78,7 @@ public class ParallelMazesModule : ModuleScript {
 		Selectable.UpdateChildren();
 		ExpertIdInput.OnSelectableUpdated();
 		foreach (Component cmp in new Component[] { SolveButton, ExpertIdInput, ExpertNotFoundComponent, GameContainer }) cmp.gameObject.SetActive(false);
+		Log("Connecting to server...");
 		_client.Connect();
 	}
 
@@ -108,14 +114,14 @@ public class ParallelMazesModule : ModuleScript {
 				yield break;
 			}
 			char dirC = command.Split(' ').Last().First();
-			float lastUpdatingTime = _updating.Time;
+			float lastUpdatingTime = _lastMoveInfo.Time;
 			float time = _lastTime;
 			if (dirC == 'u') yield return new[] { GameContainer.UpButton };
 			else if (dirC == 'd') yield return new[] { GameContainer.DownButton };
 			else if (dirC == 'l') yield return new[] { GameContainer.LeftButton };
 			else if (dirC == 'r') yield return new[] { GameContainer.RightButton };
 			else throw new System.Exception(string.Format("Move cannot be made in {0} direction", dirC));
-			yield return new WaitUntil(() => lastUpdatingTime != _updating.Time || _lastTime - time > 1f);
+			yield return new WaitUntil(() => lastUpdatingTime != _lastMoveInfo.Time || _lastTime - time > 1f);
 			yield break;
 		}
 		if (command == "retry") {
@@ -150,26 +156,35 @@ public class ParallelMazesModule : ModuleScript {
 	private void Update() {
 		_lastTime = Time.time;
 		if (IsSolved) return;
+		if (_lastException != null) {
+			Log("ERROR: {0}", _lastException);
+			_lastException = null;
+		}
+		while (_logs.Count > 0) Log(_logs.Dequeue());
 		if (_state != _prevState) UpdateState();
-		if (_updating.ShouldUpdate) {
+		if (_lastMoveInfo.IsNew) {
+			_lastMoveInfo.IsNew = false;
 			_lastPingTime = Time.time;
-			GameContainer.Move = _updating.Move;
+			string prevMover = _lastMoveInfo.Expert ? "Expert" : "Defuser";
+			string nextMover = _lastMoveInfo.CanMove ? "defuser" : "expert";
+			if (_lastMoveInfo.Strike) Log("{0} moves {1} into the wall. Strike! Next move: {2}", prevMover, _lastMoveInfo.Direction, nextMover);
+			else if (_lastMoveInfo.Solve) {
+				Log("{0} moves {1} to {2}{3}. Module solved!", prevMover, _lastMoveInfo.Direction, (char)('A' + _lastMoveInfo.Position.X), _lastMoveInfo.Position.Y + 1);
+			} else {
+				Log("{0} moves {1} to {2}{3}. Next move: {4}", prevMover, _lastMoveInfo.Direction, (char)('A' + _lastMoveInfo.Position.X), _lastMoveInfo.Position.Y + 1,
+					nextMover);
+			}
+			GameContainer.Move = _lastMoveInfo.CanMove;
 			GameContainer.UpdateLocker();
-			if (_updating.NewModulePosition != null) {
-				GameContainer.MazeComponent.PlayerPosition = _updating.NewModulePosition;
+			if (!_lastMoveInfo.Expert && _lastMoveInfo.Position != null) {
+				GameContainer.MazeComponent.PlayerPosition = _lastMoveInfo.Position;
 				GameContainer.MazeComponent.RenderPlayer();
-				Log("Moved to ({0};{1})", _updating.NewModulePosition.X, _updating.NewModulePosition.Y);
 			}
-			if (_updating.Strike) {
-				Strike();
-				Log("Moved into the wall. Strike!");
-			}
-			if (_updating.Solve) {
-				_client.WS.Close();
+			if (_lastMoveInfo.Strike) Strike();
+			if (_lastMoveInfo.Solve) {
 				Solve();
-				Log("Module solved!");
+				_client.WS.Close();
 			}
-			_updating.ShouldUpdate = false;
 		}
 		if (Time.time - _lastPingTime > 1f) {
 			if (_connected) _client.Ping();
@@ -209,29 +224,41 @@ public class ParallelMazesModule : ModuleScript {
 		if (IsSolved || !GameContainer.Move) return;
 		GameContainer.Move = false;
 		GameContainer.UpdateLocker();
+		Log("Moving {0}...", direction);
 		_client.ModuleMove(_gameId, direction, (result) => {
-			_updating = new Updating();
-			_updating.ShouldUpdate = true;
-			_updating.Move = result.Move == "module";
-			_updating.NewModulePosition = result.NewPosition;
-			_updating.Solve = result.Move == "none";
-			_updating.Time = _lastTime;
+			_lastMoveInfo = new GameMoveInfo();
+			_lastMoveInfo.IsNew = true;
+			_lastMoveInfo.Expert = false;
+			_lastMoveInfo.Direction = direction;
+			_lastMoveInfo.Position = result.NewPosition;
+			_lastMoveInfo.CanMove = result.Move == "module";
+			_lastMoveInfo.Solve = result.Move == "none";
+			_lastMoveInfo.Strike = false;
+			_lastMoveInfo.Time = _lastTime;
 		}, (reason) => {
 			if (reason.Message != "moved into wall") {
-				Debug.LogError(reason);
+				_lastException = reason;
 				return;
 			}
-			_updating = new Updating();
-			_updating.ShouldUpdate = true;
-			_updating.Move = reason.Move == "module";
-			_updating.Strike = true;
-			_updating.Time = _lastTime;
+			_lastMoveInfo = new GameMoveInfo();
+			_lastMoveInfo.IsNew = true;
+			_lastMoveInfo.Expert = false;
+			_lastMoveInfo.Direction = direction;
+			_lastMoveInfo.Position = null;
+			_lastMoveInfo.CanMove = reason.Move == "module";
+			_lastMoveInfo.Solve = false;
+			_lastMoveInfo.Strike = true;
+			_lastMoveInfo.Time = _lastTime;
 		});
 	}
 
 	private void OnDisconnectButtonPressed() {
-		_client.KickExpert(_gameId, (_) => _state = State.WAITING_FOR_EXPERT, (reason) => {
-			Debug.LogErrorFormat("kick_expert throws: {0}", reason);
+		Log("Disconnecting expert...");
+		_client.KickExpert(_gameId, (_) => {
+			_logs.Enqueue("Expert disconnected");
+			_state = State.WAITING_FOR_EXPERT;
+		}, (reason) => {
+			_lastException = reason;
 			_state = State.WAITING_FOR_EXPERT;
 		});
 	}
@@ -243,10 +270,18 @@ public class ParallelMazesModule : ModuleScript {
 
 	private void OnExpertIdSubmit() {
 		ExpertIdInput.Disabled = true;
+		Log("Connecting to expert {0}...", ExpertIdInput.ExpertId);
 		_client.ConnectToExpert(_gameId, ExpertIdInput.ExpertId, (result) => {
-			Log("Expert maze: {0}", result.ExpertMaze.SelectMany(s => s).Join(" "));
-			Log("Module start position: ({0};{1})", result.ModulePos.X, result.ModulePos.Y);
-			Log("Module finish position: ({0};{1})", result.ModuleFinish.X, result.ModuleFinish.Y);
+			_logs.Enqueue("Expert connected");
+			if (!_startLogged) {
+				_logs.Enqueue(string.Format("Defuser maze: {0}", result.ModuleMaze.Select(s => s.Join(" ")).Join(";")));
+				_logs.Enqueue(string.Format("Defuser start position: {0}{1}", (char)('A' + result.ModulePos.X), result.ModulePos.Y + 1));
+				_logs.Enqueue(string.Format("Defuser finish position: {0}{1}", (char)('A' + result.ModuleFinish.X), result.ModuleFinish.Y + 1));
+				_logs.Enqueue(string.Format("Expert maze: {0}", result.ExpertMaze.Select(s => s.Join(" ")).Join(";")));
+				_logs.Enqueue(string.Format("Expert start position: {0}{1}", (char)('A' + result.ExpertPos.X), result.ExpertPos.Y + 1));
+				_logs.Enqueue(string.Format("Expert finish position: {0}{1}", (char)('A' + result.ExpertFinish.X), result.ExpertFinish.Y + 1));
+				_startLogged = true;
+			}
 			GameContainer.MazeComponent.Map = result.ExpertMaze;
 			GameContainer.MazeComponent.PlayerPosition = result.ModulePos;
 			GameContainer.MazeComponent.FinishPosition = result.ModuleFinish;
@@ -254,7 +289,7 @@ public class ParallelMazesModule : ModuleScript {
 			_state = State.IN_GAME;
 		}, (reason) => {
 			if (reason as string == "expert not found") _state = State.EXPERT_NOT_FOUND;
-			else Debug.LogErrorFormat("Unexpected error reason on expert id submit: {0}", reason);
+			else _lastException = reason;
 		});
 	}
 
@@ -262,29 +297,33 @@ public class ParallelMazesModule : ModuleScript {
 		_connected = true;
 		switch (_state) {
 			case State.CONNECTON:
-				Log("Connected to server. Registration...");
+				_logs.Enqueue("Connected to server. Registration...");
 				_state = State.REGISTRATION;
-				_client.CreateGame(OnGameCreated, (reason) => Debug.LogError(reason));
+				_client.CreateGame(OnGameCreated, (reason) => _lastException = reason);
 				break;
-			default: Debug.LogError("Unexpected connection"); break;
+			default: _lastException = "Unexpected connection"; break;
 		}
 	}
 
 	private void OnGameCreated(ParallelMazesClient.CreateGameResponse game) {
 		if (_state != State.REGISTRATION) {
-			Debug.LogError("Game created not on registration");
+			_lastException = "Unexpected game creation event";
 			return;
 		}
-		Log("Registered: {0} / {1}", game.GameId, game.ModuleKey);
+		_logs.Enqueue(string.Format("Game created: {0}", game.GameId));
 		_gameId = game.GameId;
 		_moduleKey = game.ModuleKey;
 		_state = State.WAITING_FOR_EXPERT;
 		_client.OnExpertMoved(_gameId, (e) => {
-			_updating = new Updating();
-			_updating.ShouldUpdate = true;
-			_updating.Move = e.Move == "module";
-			_updating.Strike = e.Strike;
-			_updating.Solve = e.Move == "none";
+			_lastMoveInfo = new GameMoveInfo();
+			_lastMoveInfo.IsNew = true;
+			_lastMoveInfo.Expert = true;
+			_lastMoveInfo.Direction = e.Direction;
+			_lastMoveInfo.Position = e.NewExpertPosition;
+			_lastMoveInfo.CanMove = e.Move == "module";
+			_lastMoveInfo.Solve = e.Move == "none";
+			_lastMoveInfo.Strike = e.Strike;
+			_lastMoveInfo.Time = _lastTime;
 		});
 	}
 
@@ -292,10 +331,10 @@ public class ParallelMazesModule : ModuleScript {
 		_connected = false;
 		switch (_state) {
 			case State.CONNECTON:
-				Log("Unable to connect to server");
+				_lastException = "Unable to connect to server";
 				_state = State.DISCONNECTED;
 				break;
-			default: Debug.LogError("Connection closed"); break;
+			default: _lastException = "Connection closed"; break;
 		}
 	}
 }

@@ -23,9 +23,12 @@ public class ParallelMazesClient {
 	}
 
 	public sealed class ConnectToExpertResponse {
-		[JsonProperty(Required = Required.Always, PropertyName = "expert_maze")] public int[][] ExpertMaze;
+		[JsonProperty(Required = Required.Always, PropertyName = "module_maze")] public int[][] ModuleMaze;
 		[JsonProperty(Required = Required.Always, PropertyName = "module_pos")] public Coord ModulePos;
 		[JsonProperty(Required = Required.Always, PropertyName = "module_finish")] public Coord ModuleFinish;
+		[JsonProperty(Required = Required.Always, PropertyName = "expert_maze")] public int[][] ExpertMaze;
+		[JsonProperty(Required = Required.Always, PropertyName = "expert_pos")] public Coord ExpertPos;
+		[JsonProperty(Required = Required.Always, PropertyName = "expert_finish")] public Coord ExpertFinish;
 		[JsonProperty(Required = Required.Always, PropertyName = "move")] public string Move;
 	}
 
@@ -48,11 +51,14 @@ public class ParallelMazesClient {
 		[JsonProperty(Required = Required.Always, PropertyName = "game_id")] public string GameId;
 		[JsonProperty(Required = Required.Always, PropertyName = "move")] public string Move;
 		[JsonProperty(Required = Required.Always, PropertyName = "strike")] public bool Strike;
+		[JsonProperty(Required = Required.Always, PropertyName = "direction")] public string Direction;
+		[JsonProperty(Required = Required.Always, PropertyName = "new_expert_pos")] public Coord NewExpertPosition;
 	}
 
 	public WSClient WS;
 
 	public ParallelMazesClient() { WS = new WSClient("ws://warm-wildwood-46578.herokuapp.com"); }
+	// public ParallelMazesClient() { WS = new WSClient("ws://127.0.0.1:3000"); }
 	public void Connect() { WS.Connect(); }
 	public void Ping() { WS.Call("ping", null, (_) => {}, (_) => {}); }
 

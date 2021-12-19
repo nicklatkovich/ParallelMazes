@@ -21,6 +21,7 @@ export interface OnModuleMovedEventData {
 
 export class ParallelMazesClient {
 	private ws = new WSClient("wss://warm-wildwood-46578.herokuapp.com/");
+	// private ws = new WSClient("ws://127.0.0.1:3000");
 
 	public async connect(): Promise<void> { await this.ws.connect(); this.pingJob(); }
 	public async createGame(): Promise<{ gameId: string, moduleKey: string }> {

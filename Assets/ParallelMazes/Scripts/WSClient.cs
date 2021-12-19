@@ -39,7 +39,7 @@ public class WSClient {
 		// _socket.SslConfiguration.EnabledSslProtocols = System.Security.Authentication.SslProtocols.Ssl3;
 		// Debug.Log(_socket.SslConfiguration.EnabledSslProtocols);
 		_socket.OnOpen += (s, e) => { OnOpen.Invoke(); };
-		_socket.OnClose += (s, e) => { Debug.LogError(e.Reason); Debug.LogError(e.Code); Debug.LogError(e.Code); Debug.LogError(e.WasClean); OnClose.Invoke(); };
+		_socket.OnClose += (s, e) => { OnClose.Invoke(); };
 		_socket.OnError += (s, e) => { OnError.Invoke(e.Message); };
 		_socket.OnMessage += (s, e) => {
 			try {
