@@ -280,6 +280,7 @@ public class ParallelMazesModule : ModuleScript {
 				_logs.Enqueue(string.Format("Expert maze: {0}", result.ExpertMaze.Select(s => s.Join(" ")).Join(";")));
 				_logs.Enqueue(string.Format("Expert start position: {0}{1}", (char)('A' + result.ExpertPos.X), result.ExpertPos.Y + 1));
 				_logs.Enqueue(string.Format("Expert finish position: {0}{1}", (char)('A' + result.ExpertFinish.X), result.ExpertFinish.Y + 1));
+				_logs.Enqueue(string.Format("Next move: {0}", result.Move == "module" ? "defuser" : "expert"));
 				_startLogged = true;
 			}
 			GameContainer.MazeComponent.Map = result.ExpertMaze;
