@@ -6,19 +6,21 @@ using UnityEngine;
 using KeepCoding;
 
 public class ParallelMazesModule : ModuleScript {
-	enum State { CONNECTON, DISCONNECTED, REGISTRATION, WAITING_FOR_EXPERT, IN_GAME, EXPERT_NOT_FOUND }
+	enum State { CONNECTON, CONNECTION_ERROR, REGISTRATION, WAITING_FOR_EXPERT, IN_GAME, EXPERT_NOT_FOUND, DISCONNECTED }
 
 	public readonly string TwitchHelpMessage = new[] {
 		"\"!{0} expert 123456\" - connect expert",
 		"\"!{0} move u\" - press movement button",
 		"\"!{0} retry\" - press retry button",
 		"\"!{0} disconnect\" - disconnect expert",
-		"\"!{0} sad\" - solves module if server is unavailable",
+		"\"!{0} reconnect\" - reconnect if connection closed",
+		"\"!{0} offline\" - solve module if server is unavailable",
 	}.Join(" | ");
 
 	public TextMesh Console;
 	public KMSelectable Selectable;
 	public KMSelectable SolveButton;
+	public KMSelectable ReconnectButton;
 	public ExpertIdInput ExpertIdInput;
 	public ExpertNotFoundComponent ExpertNotFoundComponent;
 	public GameContainer GameContainer;
@@ -57,6 +59,7 @@ public class ParallelMazesModule : ModuleScript {
 	public override void OnActivate() {
 		base.OnActivate();
 		SolveButton.OnInteract += () => { if (!IsSolved) Solve(); return false; };
+		ReconnectButton.OnInteract += () => { Reconnect(); return false; };
 		ExpertIdInput.SubmitButton.OnInteract += () => { if (!IsSolved && !ExpertIdInput.Disabled) OnExpertIdSubmit(); return false; };
 		ExpertNotFoundComponent.RetryButton.OnInteract += () => { if (!IsSolved) OnExpertNotFoundRetryPressed(); return false; };
 		GameContainer.DisconnectButton.OnInteract += () => { if (!IsSolved) OnDisconnectButtonPressed(); return false; };
@@ -70,6 +73,7 @@ public class ParallelMazesModule : ModuleScript {
 		foreach (KMSelectable dirBtn in dirButtons) dirBtn.Parent = Selectable;
 		Selectable.Children = new[] {
 			SolveButton,
+			ReconnectButton,
 			ExpertIdInput.ClearButton,
 			ExpertIdInput.SubmitButton,
 			ExpertNotFoundComponent.RetryButton,
@@ -77,7 +81,7 @@ public class ParallelMazesModule : ModuleScript {
 		}.Concat(ExpertIdInput.Keys.Select(k => k.Selectable)).Concat(dirButtons).ToArray();
 		Selectable.UpdateChildren();
 		ExpertIdInput.OnSelectableUpdated();
-		foreach (Component cmp in new Component[] { SolveButton, ExpertIdInput, ExpertNotFoundComponent, GameContainer }) cmp.gameObject.SetActive(false);
+		foreach (Component cmp in new Component[] { SolveButton, ReconnectButton, ExpertIdInput, ExpertNotFoundComponent, GameContainer }) cmp.gameObject.SetActive(false);
 		Log("Connecting to server...");
 		_client.Connect();
 	}
@@ -142,9 +146,9 @@ public class ParallelMazesModule : ModuleScript {
 			yield return new[] { GameContainer.DisconnectButton };
 			yield break;
 		}
-		if (command == "sad") {
+		if (command == "offline") {
 			yield return null;
-			if (_state != State.DISCONNECTED) {
+			if (_state != State.CONNECTION_ERROR) {
 				yield return "sendtochaterror {0}, !{1}: module seems to be working correctly";
 				yield break;
 			}
@@ -194,11 +198,12 @@ public class ParallelMazesModule : ModuleScript {
 
 	private void UpdateState() {
 		_lastPingTime = Time.time;
-		if (_state == State.DISCONNECTED) {
-			Console.text = "DISCONNECTED";
+		if (_state == State.CONNECTION_ERROR) {
+			Console.text = "NO CONNECTION";
 			SolveButton.gameObject.SetActive(true);
-		} else if (_state == State.REGISTRATION) Console.text = "REGISTRATION";
-		else if (_state == State.WAITING_FOR_EXPERT) {
+		} else if (_state == State.REGISTRATION) {
+			Console.text = "REGISTRATION";
+		} else if (_state == State.WAITING_FOR_EXPERT) {
 			GameContainer.gameObject.SetActive(false);
 			ExpertNotFoundComponent.gameObject.SetActive(false);
 			Console.text = string.Format("GAME ID: {0}", _gameId);
@@ -216,8 +221,21 @@ public class ParallelMazesModule : ModuleScript {
 			ExpertIdInput.gameObject.SetActive(false);
 			ExpertNotFoundComponent.gameObject.SetActive(true);
 			ExpertNotFoundComponent.ExpertId = ExpertIdInput.ExpertId;
+		} else if (_state == State.DISCONNECTED) {
+			ExpertIdInput.gameObject.SetActive(false);
+			GameContainer.gameObject.SetActive(false);
+			ReconnectButton.gameObject.SetActive(true);
+			Console.text = "DISCONNECTED";
 		}
 		_prevState = _state;
+	}
+
+	private void Reconnect() {
+		if (IsSolved || _state != State.DISCONNECTED) return;
+		ReconnectButton.gameObject.SetActive(false);
+		_state = State.CONNECTON;
+		Console.text = "RECONNECT";
+		_client.WS.Connect();
 	}
 
 	private void OnMove(string direction) {
@@ -333,9 +351,13 @@ public class ParallelMazesModule : ModuleScript {
 		switch (_state) {
 			case State.CONNECTON:
 				_lastException = "Unable to connect to server";
+				_state = State.CONNECTION_ERROR;
+				break;
+			default:
+				if (IsSolved) break;
+				_lastException = "Connection closed";
 				_state = State.DISCONNECTED;
 				break;
-			default: _lastException = "Connection closed"; break;
 		}
 	}
 }

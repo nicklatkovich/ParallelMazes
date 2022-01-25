@@ -57,8 +57,8 @@ public class ParallelMazesClient {
 
 	public WSClient WS;
 
-	public ParallelMazesClient() { WS = new WSClient("ws://warm-wildwood-46578.herokuapp.com"); }
-	// public ParallelMazesClient() { WS = new WSClient("ws://127.0.0.1:3000"); }
+	// public ParallelMazesClient() { WS = new WSClient("ws://warm-wildwood-46578.herokuapp.com"); }
+	public ParallelMazesClient() { WS = new WSClient("ws://127.0.0.1:3000"); }
 	public void Connect() { WS.Connect(); }
 	public void Ping() { WS.Call("ping", null, (_) => {}, (_) => {}); }
 
