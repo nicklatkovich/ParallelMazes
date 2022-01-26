@@ -45,12 +45,12 @@ public class ParallelMazesModule : ModuleScript {
 	private State _prevState = State.CONNECTON;
 	private State _state = State.CONNECTON;
 	private GameMoveInfo _lastMoveInfo = new GameMoveInfo();
-	private ParallelMazesClient _client = new ParallelMazesClient();
+	private ParallelMazesClient _client;
 	private object _lastException = null;
 	private Queue<string> _logs = new Queue<string>();
 
 	private void Start() {
-		_lastTime = Time.time;
+		_client = new ParallelMazesClient();
 		_client.WS.OnOpen += OnConnect;
 		_client.WS.OnError += (e) => _lastException = e;
 		_client.WS.OnClose += OnDisconnected;
@@ -58,31 +58,24 @@ public class ParallelMazesModule : ModuleScript {
 
 	public override void OnActivate() {
 		base.OnActivate();
+		_lastTime = Time.time;
 		SolveButton.OnInteract += () => { if (!IsSolved) Solve(); return false; };
 		ReconnectButton.OnInteract += () => { Reconnect(); return false; };
-		ExpertIdInput.SubmitButton.OnInteract += () => { if (!IsSolved && !ExpertIdInput.Disabled) OnExpertIdSubmit(); return false; };
 		ExpertNotFoundComponent.RetryButton.OnInteract += () => { if (!IsSolved) OnExpertNotFoundRetryPressed(); return false; };
+		GameContainer.Init();
 		GameContainer.DisconnectButton.OnInteract += () => { if (!IsSolved) OnDisconnectButtonPressed(); return false; };
 		GameContainer.RightButton.OnInteract += () => { OnMove("right"); return false; };
 		GameContainer.UpButton.OnInteract += () => { OnMove("up"); return false; };
 		GameContainer.LeftButton.OnInteract += () => { OnMove("left"); return false; };
 		GameContainer.DownButton.OnInteract += () => { OnMove("down"); return false; };
+		ExpertIdInput.Init();
+		ExpertIdInput.SubmitButton.OnInteract += () => { if (!IsSolved && !ExpertIdInput.Disabled) OnExpertIdSubmit(); return false; };
 		foreach (KeyComponent key in ExpertIdInput.Keys) key.Selectable.Parent = Selectable;
-		ExpertNotFoundComponent.RetryButton.Parent = Selectable;
-		KMSelectable[] dirButtons = new[] { GameContainer.RightButton, GameContainer.UpButton, GameContainer.LeftButton, GameContainer.DownButton };
-		foreach (KMSelectable dirBtn in dirButtons) dirBtn.Parent = Selectable;
-		Selectable.Children = new[] {
-			SolveButton,
-			ReconnectButton,
-			ExpertIdInput.ClearButton,
-			ExpertIdInput.SubmitButton,
-			ExpertNotFoundComponent.RetryButton,
-			GameContainer.DisconnectButton,
-		}.Concat(ExpertIdInput.Keys.Select(k => k.Selectable)).Concat(dirButtons).ToArray();
-		Selectable.UpdateChildren();
-		ExpertIdInput.OnSelectableUpdated();
-		foreach (Component cmp in new Component[] { SolveButton, ReconnectButton, ExpertIdInput, ExpertNotFoundComponent, GameContainer }) cmp.gameObject.SetActive(false);
+		foreach (KMSelectable dirBtn in new[] { GameContainer.RightButton, GameContainer.UpButton, GameContainer.LeftButton, GameContainer.DownButton }) {
+			dirBtn.Parent = Selectable;
+		}
 		Log("Connecting to server...");
+		Console.text = "CONNECTION";
 		_client.Connect();
 	}
 
@@ -201,6 +194,8 @@ public class ParallelMazesModule : ModuleScript {
 		if (_state == State.CONNECTION_ERROR) {
 			Console.text = "NO CONNECTION";
 			SolveButton.gameObject.SetActive(true);
+			Selectable.Children = new[] { SolveButton };
+			Selectable.UpdateChildrenProperly();
 		} else if (_state == State.REGISTRATION) {
 			Console.text = "REGISTRATION";
 		} else if (_state == State.WAITING_FOR_EXPERT) {

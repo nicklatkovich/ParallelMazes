@@ -13,6 +13,11 @@ public class GameContainer : MonoBehaviour {
 	public KMSelectable DownButton;
 
 	private void Start() {
+		Init();
+	}
+
+	public void Init() {
+		if (RightButton != null) return;
 		RightButton = CreateDirectionButton(new Vector2(7.5f, 3), 0);
 		UpButton = CreateDirectionButton(new Vector2(3, -1.5f), -90);
 		LeftButton = CreateDirectionButton(new Vector2(-1.5f, 3), 180);

@@ -18,6 +18,11 @@ public class ExpertIdInput : MonoBehaviour {
 	public string ExpertId { get { return _expertId; } set { if (_expertId == value) return; _expertId = value; UpdateExpertIdInputText(); } }
 
 	private void Start() {
+		Init();
+	}
+
+	public void Init() {
+		if (Keys != null) return;
 		Keys = Enumerable.Range(0, 10).Select(i => {
 			KeyComponent key = Instantiate(KeyPrefab);
 			key.transform.parent = transform;
@@ -33,11 +38,6 @@ public class ExpertIdInput : MonoBehaviour {
 			return key;
 		}).ToArray();
 		ClearButton.OnInteract += () => { OnClearPressed(); return false; };
-	}
-
-	public void OnSelectableUpdated() {
-		ClearButton.gameObject.SetActive(false);
-		SubmitButton.gameObject.SetActive(false);
 	}
 
 	private void OnKeyPressed(char c) {
