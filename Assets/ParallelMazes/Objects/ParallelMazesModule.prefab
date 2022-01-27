@@ -114,7 +114,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!1 &1178017966146838
 GameObject:
   m_ObjectHideFlags: 1
@@ -166,7 +166,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!1 &1220339707987582
 GameObject:
   m_ObjectHideFlags: 1
@@ -304,7 +304,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!1 &1408920226183902
 GameObject:
   m_ObjectHideFlags: 1
@@ -338,7 +338,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!1 &1445366791599154
 GameObject:
   m_ObjectHideFlags: 1
@@ -616,7 +616,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!1 &1878776787790526
 GameObject:
   m_ObjectHideFlags: 1
@@ -3124,7 +3124,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   Parent: {fileID: 0}
   Children:
-  - {fileID: 0}
+  - {fileID: 114943875096699052}
+  - {fileID: 114975141770321454}
+  - {fileID: 114683662510398636}
+  - {fileID: 114576520653608276}
+  - {fileID: 114405850717053664}
+  - {fileID: 114990081247993102}
   IsPassThrough: 0
   ChildRowLength: 1
   Highlight: {fileID: 114763337212703624}

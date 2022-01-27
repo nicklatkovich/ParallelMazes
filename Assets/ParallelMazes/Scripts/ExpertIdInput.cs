@@ -18,11 +18,13 @@ public class ExpertIdInput : MonoBehaviour {
 	public string ExpertId { get { return _expertId; } set { if (_expertId == value) return; _expertId = value; UpdateExpertIdInputText(); } }
 
 	private void Start() {
+		SubmitButton.transform.localScale = Vector3.zero;
+		ClearButton.transform.localScale = Vector3.zero;
 		Init();
 	}
 
 	public void Init() {
-		if (Keys != null) return;
+		if (Keys != null && Keys.Length > 0) return;
 		Keys = Enumerable.Range(0, 10).Select(i => {
 			KeyComponent key = Instantiate(KeyPrefab);
 			key.transform.parent = transform;
@@ -46,14 +48,14 @@ public class ExpertIdInput : MonoBehaviour {
 		ExpertId += c;
 	}
 
-	private void OnClearPressed() {
+	public void OnClearPressed() {
 		if (Disabled) return;
 		ExpertId = "";
 	}
 
 	private void UpdateExpertIdInputText() {
 		ExpertIdComponent.text = ExpertId.PadRight(EXPERT_ID_LENGTH, '.');
-		ClearButton.gameObject.SetActive(ExpertId.Length > 0);
-		SubmitButton.gameObject.SetActive(ExpertId.Length == EXPERT_ID_LENGTH);
+		ClearButton.transform.localScale = ExpertId.Length > 0 ? Vector3.one : Vector3.zero;
+		SubmitButton.transform.localScale = ExpertId.Length == EXPERT_ID_LENGTH ? Vector3.one : Vector3.zero;
 	}
 }

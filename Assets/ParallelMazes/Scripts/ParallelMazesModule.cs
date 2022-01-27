@@ -45,12 +45,16 @@ public class ParallelMazesModule : ModuleScript {
 	private State _prevState = State.CONNECTON;
 	private State _state = State.CONNECTON;
 	private GameMoveInfo _lastMoveInfo = new GameMoveInfo();
-	private ParallelMazesClient _client;
+	private ParallelMazesClient _client = new ParallelMazesClient();
 	private object _lastException = null;
 	private Queue<string> _logs = new Queue<string>();
 
 	private void Start() {
-		_client = new ParallelMazesClient();
+		SolveButton.transform.localScale = Vector3.zero;
+		ReconnectButton.transform.localScale = Vector3.zero;
+		ExpertIdInput.transform.localScale = Vector3.zero;
+		ExpertNotFoundComponent.transform.localScale = Vector3.zero;
+		GameContainer.transform.localScale = Vector3.zero;
 		_client.WS.OnOpen += OnConnect;
 		_client.WS.OnError += (e) => _lastException = e;
 		_client.WS.OnClose += OnDisconnected;
@@ -74,6 +78,13 @@ public class ParallelMazesModule : ModuleScript {
 		foreach (KMSelectable dirBtn in new[] { GameContainer.RightButton, GameContainer.UpButton, GameContainer.LeftButton, GameContainer.DownButton }) {
 			dirBtn.Parent = Selectable;
 		}
+		Selectable.Children = Selectable.Children.Concat(new[] {
+			GameContainer.RightButton,
+			GameContainer.UpButton,
+			GameContainer.LeftButton,
+			GameContainer.DownButton,
+		}).Concat(ExpertIdInput.Keys.Select(key => key.Selectable)).ToArray();
+		Selectable.UpdateChildrenProperly();
 		Log("Connecting to server...");
 		Console.text = "CONNECTION";
 		_client.Connect();
@@ -193,33 +204,34 @@ public class ParallelMazesModule : ModuleScript {
 		_lastPingTime = Time.time;
 		if (_state == State.CONNECTION_ERROR) {
 			Console.text = "NO CONNECTION";
-			SolveButton.gameObject.SetActive(true);
-			Selectable.Children = new[] { SolveButton };
-			Selectable.UpdateChildrenProperly();
+			SolveButton.transform.localScale = Vector3.one;
 		} else if (_state == State.REGISTRATION) {
 			Console.text = "REGISTRATION";
 		} else if (_state == State.WAITING_FOR_EXPERT) {
-			GameContainer.gameObject.SetActive(false);
-			ExpertNotFoundComponent.gameObject.SetActive(false);
+			GameContainer.transform.localScale = Vector3.zero;
+			ExpertNotFoundComponent.transform.localScale = Vector3.zero;
 			Console.text = string.Format("GAME ID: {0}", _gameId);
-			ExpertIdInput.gameObject.SetActive(true);
+			ExpertIdInput.transform.localScale = Vector3.one;
 		} else if (_state == State.IN_GAME) {
-			Console.text = string.Format("GAME ID: {0}\nEXPERT: {1}", _gameId, ExpertIdInput.ExpertId);
 			ExpertIdInput.Disabled = false;
-			ExpertIdInput.gameObject.SetActive(false);
-			GameContainer.gameObject.SetActive(true);
+			Console.text = string.Format("GAME ID: {0}\nEXPERT: {1}", _gameId, ExpertIdInput.ExpertId);
+			ExpertIdInput.transform.localScale = Vector3.zero;
+			GameContainer.transform.localScale = Vector3.one;
 			GameContainer.UpdateLocker();
 			GameContainer.MazeComponent.Render();
 		} else if (_state == State.EXPERT_NOT_FOUND) {
 			Log("Expert {0} not found", ExpertIdInput.ExpertId);
 			ExpertIdInput.Disabled = false;
-			ExpertIdInput.gameObject.SetActive(false);
-			ExpertNotFoundComponent.gameObject.SetActive(true);
+			ExpertIdInput.transform.localScale = Vector3.zero;
+			ExpertNotFoundComponent.transform.localScale = Vector3.one;
 			ExpertNotFoundComponent.ExpertId = ExpertIdInput.ExpertId;
 		} else if (_state == State.DISCONNECTED) {
-			ExpertIdInput.gameObject.SetActive(false);
-			GameContainer.gameObject.SetActive(false);
-			ReconnectButton.gameObject.SetActive(true);
+			_startLogged = false;
+			ExpertIdInput.transform.localScale = Vector3.zero;
+			ExpertIdInput.OnClearPressed();
+			ExpertNotFoundComponent.transform.localScale = Vector3.zero;
+			GameContainer.transform.localScale = Vector3.zero;
+			ReconnectButton.transform.localScale = Vector3.one;
 			Console.text = "DISCONNECTED";
 		}
 		_prevState = _state;
@@ -227,7 +239,7 @@ public class ParallelMazesModule : ModuleScript {
 
 	private void Reconnect() {
 		if (IsSolved || _state != State.DISCONNECTED) return;
-		ReconnectButton.gameObject.SetActive(false);
+		ReconnectButton.transform.localScale = Vector3.zero;
 		_state = State.CONNECTON;
 		Console.text = "RECONNECT";
 		_client.WS.Connect();
