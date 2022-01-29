@@ -150,6 +150,15 @@ public class ParallelMazesModule : ModuleScript {
 			yield return new[] { GameContainer.DisconnectButton };
 			yield break;
 		}
+		if (command == "reconnect") {
+			yield return null;
+			if (_state != State.DISCONNECTED) {
+				yield return "sendtochaterror {0}, !{1}: unable to reconnect";
+				yield break;
+			}
+			yield return new[] { ReconnectButton };
+			yield break;
+		}
 		if (command == "offline") {
 			yield return null;
 			if (_state != State.CONNECTION_ERROR) {
